@@ -11,6 +11,15 @@ java {
     sourceCompatibility = '17'
 }
 
+jar {
+    enabled = false
+}
+
+bootJar {
+    archiveBaseName = 'foodybuddy-orders'
+    archiveVersion = '0.0.1-SNAPSHOT'
+}
+
 repositories {
     mavenCentral()
 }
@@ -25,4 +34,13 @@ dependencies {
 
 tasks.named('test') {
     useJUnitPlatform()
+}
+
+bootRun {
+    jvmArgs = [
+        '-Xmx512m',
+        '-Xms256m',
+        '-XX:+UseG1GC',
+        '-Dspring.profiles.active=dev'
+    ]
 }

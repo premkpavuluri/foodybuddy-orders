@@ -2,6 +2,7 @@ package com.foodybuddy.orders.controller;
 
 import com.foodybuddy.orders.dto.CreateOrderRequest;
 import com.foodybuddy.orders.dto.OrderResponse;
+import com.foodybuddy.orders.entity.Order;
 import com.foodybuddy.orders.entity.OrderStatus;
 import com.foodybuddy.orders.service.OrderService;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -16,8 +17,11 @@ import java.util.List;
 @CrossOrigin(origins = "http://localhost:3000")
 public class OrderController {
     
-    @Autowired
-    private OrderService orderService;
+    private final OrderService orderService;
+
+    public OrderController(OrderService orderService) {
+        this.orderService = orderService;
+    }
     
     @PostMapping
     public ResponseEntity<OrderResponse> createOrder(@RequestBody CreateOrderRequest request) {
@@ -60,5 +64,41 @@ public class OrderController {
     @GetMapping("/health")
     public ResponseEntity<String> health() {
         return ResponseEntity.ok("Orders service is healthy");
+    }
+
+    /**
+     * Simulate order status progression for testing
+     * This endpoint simulates the order lifecycle
+     */
+    @PostMapping("/{orderId}/simulate-progression")
+    public ResponseEntity<OrderResponse> simulateOrderProgression(@PathVariable String orderId) {
+        try {
+            OrderResponse order = orderService.getOrder(orderId);
+            
+            // Simulate status progression
+            switch (order.getStatus()) {
+                case PENDING:
+                    order = orderService.updateOrderStatus(orderId, OrderStatus.CONFIRMED);
+                    break;
+                case CONFIRMED:
+                    order = orderService.updateOrderStatus(orderId, OrderStatus.PREPARING);
+                    break;
+                case PREPARING:
+                    order = orderService.updateOrderStatus(orderId, OrderStatus.READY);
+                    break;
+                case READY:
+                    order = orderService.updateOrderStatus(orderId, OrderStatus.OUT_FOR_DELIVERY);
+                    break;
+                case OUT_FOR_DELIVERY:
+                    order = orderService.updateOrderStatus(orderId, OrderStatus.DELIVERED);
+                    break;
+                default:
+                    return ResponseEntity.badRequest().build();
+            }
+            
+            return ResponseEntity.ok(order);
+        } catch (RuntimeException e) {
+            return ResponseEntity.notFound().build();
+        }
     }
 }
