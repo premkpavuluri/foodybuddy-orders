@@ -21,5 +21,8 @@ COPY src src
 # Expose the port the app runs on
 EXPOSE 8081
 
+# Set the Spring profile for development
+ENV SPRING_PROFILES_ACTIVE=dev
+
 # Run the application with development settings
-CMD ["./gradlew", "bootRun"]
+CMD ["./gradlew", "bootRun", "--args=--spring.profiles.active=dev"]
