@@ -46,8 +46,5 @@ EXPOSE 8081
 HEALTHCHECK --interval=30s --timeout=3s --start-period=60s --retries=3 \
   CMD curl -f http://localhost:8081/actuator/health || exit 1
 
-# Set the Spring profile for production
-ENV SPRING_PROFILES_ACTIVE=prod
-
 # Run the application with optimized JVM settings
-CMD ["java", "-Xmx512m", "-Xms256m", "-XX:+UseG1GC", "-Dspring.profiles.active=prod", "-jar", "app.jar"]
+CMD ["java", "-Xmx512m", "-Xms256m", "-XX:+UseG1GC", "-jar", "app.jar"]
