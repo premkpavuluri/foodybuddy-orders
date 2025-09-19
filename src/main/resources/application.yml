@@ -5,19 +5,19 @@ spring:
   application:
     name: foodybuddy-orders
   datasource:
-    url: jdbc:postgresql://localhost:5432/foodybuddy?currentSchema=orders
+    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:foodybuddy}?currentSchema=${DB_SCHEMA_ORDERS:orders}
     driverClassName: org.postgresql.Driver
-    username: foodybuddy_user
-    password: foodybuddy_password
+    username: ${DB_USERNAME:foodybuddy_user}
+    password: ${DB_PASSWORD:foodybuddy_password}
   jpa:
     hibernate:
-      ddl-auto: update
-    show-sql: false
+      ddl-auto: ${JPA_HIBERNATE_DDL_AUTO:update}
+    show-sql: ${JPA_SHOW_SQL:false}
     properties:
       hibernate:
         dialect: org.hibernate.dialect.PostgreSQLDialect
-        default_schema: orders
-        format_sql: false
+        default_schema: ${DB_SCHEMA_ORDERS:orders}
+        format_sql: ${JPA_FORMAT_SQL:false}
   main:
     lazy-initialization: true
 
@@ -32,8 +32,8 @@ management:
 
 logging:
   level:
-    com.foodybuddy.orders: DEBUG
+    com.foodybuddy.orders: ${LOG_LEVEL_ORDERS:DEBUG}
 
 # External service configuration
 gateway:
-  url: http://localhost:8080
+  url: ${GATEWAY_URL:http://localhost:8080}
