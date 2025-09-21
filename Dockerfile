@@ -1,50 +1,16 @@
-# Multi-stage build for better image size and security
-FROM openjdk:17-jdk-slim AS builder
-
-# Set the working directory inside the container
-WORKDIR /app
-
-# Copy the Gradle wrapper files
-COPY gradlew .
-COPY gradle gradle
-COPY build.gradle .
-
-# Make the gradlew script executable
-RUN chmod +x gradlew
-
-# Copy the source code
-COPY src src
-
-# Build the application
-RUN ./gradlew build -x test
-
-# Runtime stage
+# Optimized Orders Service - expects pre-built JAR
 FROM openjdk:17-jdk-slim
 
-# Install curl for health checks
-RUN apt-get update && apt-get install -y curl && rm -rf /var/lib/apt/lists/*
-
-# Create a non-root user for security
-RUN groupadd -r foodybuddy && useradd -r -g foodybuddy foodybuddy
-
-# Set the working directory inside the container
 WORKDIR /app
 
-# Copy the built JAR from builder stage
-COPY --from=builder /app/build/libs/foodybuddy-orders-0.0.1-SNAPSHOT.jar app.jar
+# Copy the pre-built JAR (expects it to be in build/libs/)
+COPY build/libs/foodybuddy-orders-0.0.1-SNAPSHOT.jar app.jar
 
-# Change ownership to non-root user
-RUN chown foodybuddy:foodybuddy app.jar
-
-# Switch to non-root user
-USER foodybuddy
-
-# Expose the port the app runs on
+# Expose port
 EXPOSE 8081
 
-# Add health check
-HEALTHCHECK --interval=30s --timeout=3s --start-period=60s --retries=3 \
-  CMD curl -f http://localhost:8081/actuator/health || exit 1
+# Optimized JVM settings for fast startup
+ENV JAVA_TOOL_OPTIONS="-XX:+UseContainerSupport -XX:MaxRAMPercentage=75.0 -XX:+UseG1GC"
 
-# Run the application with optimized JVM settings
-CMD ["java", "-Xmx512m", "-Xms256m", "-XX:+UseG1GC", "-jar", "app.jar"]
+# Run the application
+CMD ["java", "-jar", "app.jar"]
