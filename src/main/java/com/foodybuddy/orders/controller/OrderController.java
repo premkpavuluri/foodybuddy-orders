@@ -10,7 +10,9 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/orders")
@@ -65,6 +67,28 @@ public class OrderController {
     public ResponseEntity<String> health() {
         return ResponseEntity.ok("Orders service is healthy");
     }
+    
+    /**
+     * Bulk update order status - processes all status progressions automatically
+     * 
+     * This endpoint:
+     * 1. Gets all orders with target statuses (CONFIRMED, PREPARING, READY, OUT_FOR_DELIVERY)
+     * 2. Creates a map of orders by their current status
+     * 3. Updates each set of orders to their desired destination status
+     */
+    @PostMapping("/bulk-status-update")
+    public ResponseEntity<Map<String, Object>> bulkUpdateOrderStatus() {
+        try {
+            Map<String, Object> result = orderService.processAllStatusProgressions();
+            return ResponseEntity.ok(result);
+        } catch (Exception e) {
+            Map<String, Object> errorResponse = new HashMap<>();
+            errorResponse.put("success", false);
+            errorResponse.put("message", "Bulk status update failed: " + e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(errorResponse);
+        }
+    }
+    
 
     /**
      * Simulate order status progression for testing

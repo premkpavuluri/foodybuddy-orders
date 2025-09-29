@@ -107,6 +107,173 @@ public class OrderService {
     }
     
     /**
+     * Bulk update order status for orders with specific status
+     * This method finds all orders with the given status and updates them to the new status
+     */
+    public Map<String, Object> bulkUpdateOrderStatus(OrderStatus fromStatus, OrderStatus toStatus) {
+        // Validate status transition
+        if (!fromStatus.canTransitionTo(toStatus)) {
+            throw new IllegalArgumentException("Invalid status transition from " + fromStatus + " to " + toStatus);
+        }
+        
+        // Get all orders with the current status
+        List<Order> ordersToUpdate = orderRepository.findByStatus(fromStatus);
+        
+        if (ordersToUpdate.isEmpty()) {
+            Map<String, Object> result = new HashMap<>();
+            result.put("success", true);
+            result.put("message", "No orders found with status " + fromStatus);
+            result.put("updatedCount", 0);
+            result.put("fromStatus", fromStatus.name());
+            result.put("toStatus", toStatus.name());
+            return result;
+        }
+        
+        // Update all orders
+        int updatedCount = 0;
+        for (Order order : ordersToUpdate) {
+            try {
+                OrderStatus oldStatus = order.getStatus();
+                order.setStatus(toStatus);
+                orderRepository.save(order);
+                
+                // Notify gateway about status change
+                notifyGatewayStatusUpdate(order.getOrderId(), toStatus.name(), 
+                    "Bulk status update from " + oldStatus + " to " + toStatus);
+                
+                updatedCount++;
+            } catch (Exception e) {
+                // Log error but continue with other orders
+                System.err.println("Failed to update order " + order.getOrderId() + ": " + e.getMessage());
+            }
+        }
+        
+        Map<String, Object> result = new HashMap<>();
+        result.put("success", true);
+        result.put("message", "Successfully updated " + updatedCount + " orders from " + fromStatus + " to " + toStatus);
+        result.put("updatedCount", updatedCount);
+        result.put("totalFound", ordersToUpdate.size());
+        result.put("fromStatus", fromStatus.name());
+        result.put("toStatus", toStatus.name());
+        
+        return result;
+    }
+    
+    /**
+     * Process all order status progressions automatically
+     * 
+     * This method:
+     * 1. Gets all orders with target statuses (CONFIRMED, PREPARING, READY, OUT_FOR_DELIVERY)
+     * 2. Creates a map of orders by their current status
+     * 3. Updates each set of orders to their desired destination status
+     */
+    public Map<String, Object> processAllStatusProgressions() {
+        Map<String, Object> overallResult = new HashMap<>();
+        overallResult.put("success", true);
+        overallResult.put("message", "Order status progression processing completed");
+        overallResult.put("timestamp", java.time.Instant.now().toString());
+        
+        // Define target statuses and their destination statuses
+        OrderStatus[] targetStatuses = {
+            OrderStatus.CONFIRMED,
+            OrderStatus.PREPARING, 
+            OrderStatus.READY,
+            OrderStatus.OUT_FOR_DELIVERY
+        };
+        
+        OrderStatus[] destinationStatuses = {
+            OrderStatus.PREPARING,
+            OrderStatus.READY,
+            OrderStatus.OUT_FOR_DELIVERY,
+            OrderStatus.DELIVERED
+        };
+        
+        String[] stepNames = {
+            "confirmed_to_preparing",
+            "preparing_to_ready", 
+            "ready_to_out_for_delivery",
+            "out_for_delivery_to_delivered"
+        };
+        
+        // Create a map of orders by their current status
+        Map<OrderStatus, List<Order>> ordersByStatus = new HashMap<>();
+        
+        // Get all orders with target statuses and group them by status
+        for (OrderStatus status : targetStatuses) {
+            List<Order> orders = orderRepository.findByStatus(status);
+            ordersByStatus.put(status, orders);
+        }
+        
+        // Track results for each step
+        Map<String, Object> stepResults = new HashMap<>();
+        int totalUpdated = 0;
+        
+        // Process each status transition
+        for (int i = 0; i < targetStatuses.length; i++) {
+            OrderStatus fromStatus = targetStatuses[i];
+            OrderStatus toStatus = destinationStatuses[i];
+            String stepName = stepNames[i];
+            
+            try {
+                List<Order> ordersToUpdate = ordersByStatus.get(fromStatus);
+                
+                if (ordersToUpdate == null || ordersToUpdate.isEmpty()) {
+                    Map<String, Object> stepResult = new HashMap<>();
+                    stepResult.put("success", true);
+                    stepResult.put("fromStatus", fromStatus.toString());
+                    stepResult.put("toStatus", toStatus.toString());
+                    stepResult.put("updatedCount", 0);
+                    stepResult.put("totalFound", 0);
+                    stepResult.put("message", "No orders found with status " + fromStatus);
+                    stepResults.put(stepName, stepResult);
+                    continue;
+                }
+                
+                // Update all found orders to the destination status
+                int updatedCount = 0;
+                for (Order order : ordersToUpdate) {
+                    if (order.getStatus().canTransitionTo(toStatus)) {
+                        order.setStatus(toStatus);
+                        order.setUpdatedAt(java.time.LocalDateTime.now());
+                        orderRepository.save(order);
+                        
+                        // Notify gateway about the status change
+                        notifyGatewayStatusUpdate(
+                            order.getOrderId(), 
+                            toStatus.toString(), 
+                            "Order status updated from " + fromStatus + " to " + toStatus
+                        );
+                        
+                        updatedCount++;
+                    }
+                }
+                
+                Map<String, Object> stepResult = new HashMap<>();
+                stepResult.put("success", true);
+                stepResult.put("fromStatus", fromStatus.toString());
+                stepResult.put("toStatus", toStatus.toString());
+                stepResult.put("updatedCount", updatedCount);
+                stepResult.put("totalFound", ordersToUpdate.size());
+                stepResult.put("message", "Successfully updated " + updatedCount + " orders from " + fromStatus + " to " + toStatus);
+                stepResults.put(stepName, stepResult);
+                
+                totalUpdated += updatedCount;
+                
+            } catch (Exception e) {
+                Map<String, Object> errorResult = new HashMap<>();
+                errorResult.put("success", false);
+                errorResult.put("message", fromStatus + " -> " + toStatus + " failed: " + e.getMessage());
+                stepResults.put(stepName, errorResult);
+            }
+        }
+        
+        overallResult.put("totalOrdersUpdated", totalUpdated);
+        overallResult.put("stepResults", stepResults);
+        
+        return overallResult;
+    }
+    
+    /**
      * Notify gateway about order status changes
      */
     private void notifyGatewayStatusUpdate(String orderId, String status, String message) {
