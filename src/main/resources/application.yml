@@ -32,7 +32,15 @@ management:
 
 logging:
   level:
-    com.foodybuddy.orders: ${LOG_LEVEL_ORDERS:DEBUG}
+    root: INFO
+    com.foodybuddy.orders: ${LOG_LEVEL_ORDERS:INFO}
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss} %-5level - %msg%n"
+    file: "%d{yyyy-MM-dd HH:mm:ss} %-5level - %msg%n"
+  file:
+    name: logs/orders.log
+    max-size: 10MB
+    max-history: 30
 
 # External service configuration
 gateway:

@@ -3,12 +3,24 @@ package com.foodybuddy.orders.dto;
 import java.util.List;
 
 public class CreateOrderRequest {
+    private String userId;
     private List<OrderItemRequest> items;
+    private Double totalAmount;
     
     public CreateOrderRequest() {}
     
-    public CreateOrderRequest(List<OrderItemRequest> items) {
+    public CreateOrderRequest(String userId, List<OrderItemRequest> items, Double totalAmount) {
+        this.userId = userId;
         this.items = items;
+        this.totalAmount = totalAmount;
+    }
+    
+    public String getUserId() {
+        return userId;
+    }
+    
+    public void setUserId(String userId) {
+        this.userId = userId;
     }
     
     public List<OrderItemRequest> getItems() {
@@ -17,6 +29,14 @@ public class CreateOrderRequest {
     
     public void setItems(List<OrderItemRequest> items) {
         this.items = items;
+    }
+    
+    public Double getTotalAmount() {
+        return totalAmount;
+    }
+    
+    public void setTotalAmount(Double totalAmount) {
+        this.totalAmount = totalAmount;
     }
     
     public static class OrderItemRequest {
