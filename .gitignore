@@ -75,3 +75,7 @@ hs_err_pid*
 *.db
 *.trace.db
 *.lock.db
+
+# Logs
+logs/
+*.log
